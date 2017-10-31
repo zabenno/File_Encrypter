@@ -1,10 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace FileEncryptor
 {
@@ -20,26 +17,43 @@ namespace FileEncryptor
             aes.KeySize = 256;
         }
 
+        /// <summary>
+        /// Creates a key that will be used later for encrypting.
+        /// </summary>
+        /// <param name="password">The password submitted by the user.</param>
         public void CreateKey(string password)
         {
+            //Salting the password.
             byte[] pass = Encoding.Unicode.GetBytes(password);
             random.NextBytes(salt);
             byte[] saltedPassword = new byte[16 + pass.Length];
             Array.Copy(pass, saltedPassword, pass.Length);
             Array.Copy(salt, 0, saltedPassword, password.Length, salt.Length);
 
+            //Computing the hash that will be used as the aes key.
             aes.Key = sha.ComputeHash(saltedPassword);
         }
 
+        /// <summary>
+        /// Given the salt from the file and the password a user enters an aes key will be generated to decrypt the file.
+        /// </summary>
+        /// <param name="password">The password submitted by the user.</param>
+        /// <param name="salt">The salt obtained from the file.</param>
         public void discoverKey(string password, byte[] salt)
         {
+            //Salting the password.
             byte[] pass = Encoding.Unicode.GetBytes(password);
             byte[] saltedPassword = new byte[16 + pass.Length];
             Array.Copy(pass, saltedPassword, pass.Length);
             Array.Copy(salt, 0, saltedPassword, password.Length, salt.Length);
+            //Computing the hash to be used as the aes key.
             aes.Key = sha.ComputeHash(saltedPassword);
         }
 
+        /// <summary>
+        /// Encrypts the file with the given file path. Requires a key to have been generated.
+        /// </summary>
+        /// <param name="filePath">The path of the file to be encrypted.</param>
         public void encryptFile(string filePath)
         {
             //Setup temporary file name.
@@ -52,7 +66,7 @@ namespace FileEncryptor
             aes.GenerateIV();
 
             //Creating a file to write to and adding salt used for hash and IV.
-            FileStream newFile = new FileStream(temporaryName, FileMode.CreateNew, FileAccess.Write);
+            FileStream newFile = new FileStream(temporaryName, FileMode.Create, FileAccess.Write);
             newFile.Write(salt, 0, 16);
             newFile.Write(aes.IV, 0, aes.IV.Length);
 
@@ -69,16 +83,28 @@ namespace FileEncryptor
                 oldfile.Read(readFromFile, 0, bytesToRead);
                 bytesRead += bytesToRead;
 
-                //Encrypt bytes that have been read into memory then write them to the new file.
-                using (MemoryStream memStream = new MemoryStream())
+                try
                 {
-                    using (CryptoStream cryptStream = new CryptoStream(memStream, encryptor, CryptoStreamMode.Write))
+                    //Encrypt bytes that have been read into memory then write them to the new file.
+                    using (MemoryStream memStream = new MemoryStream())
                     {
-                        cryptStream.Write(readFromFile, 0, readFromFile.Length);
+                        using (CryptoStream cryptStream = new CryptoStream(memStream, encryptor, CryptoStreamMode.Write))
+                        {
+                            cryptStream.Write(readFromFile, 0, readFromFile.Length);
+                        }
+                        byte[] bytesToWrite = memStream.ToArray();
+                        newFile.Write(bytesToWrite, 0, bytesToWrite.Length);
                     }
-                    byte[] bytesToWrite = memStream.ToArray();
-                    newFile.Write(bytesToWrite, 0, bytesToWrite.Length);
                 }
+                catch
+                {
+                    Console.Out.WriteLine("File failed to encrypt.");
+                    oldfile.Close();
+                    newFile.Close();
+                    File.Delete(temporaryName);
+                    return;
+                }
+
             }
 
             //Clean up.
@@ -89,6 +115,11 @@ namespace FileEncryptor
 
         }
 
+        /// <summary>
+        /// Makes a temporary file path for use while a file is being encrypted/decrypted.
+        /// </summary>
+        /// <param name="filePath">Path of the file being encrypted/decrypted.</param>
+        /// <returns>The temporary file path to be used.</returns>
         public string getTemporaryName(string filePath)
         {
             string[] seperators = { "\\" };
@@ -100,6 +131,11 @@ namespace FileEncryptor
             return temporaryName;
         }
 
+        /// <summary>
+        /// Decrypts the given file using the salt and IV from the file and the password the user submits.
+        /// </summary>
+        /// <param name="filePath">The location of the file.</param>
+        /// <param name="password">The password being attempted.</param>
         public void decryptFile(string filePath, string password)
         {
             //Setup temporary file name.
@@ -134,16 +170,28 @@ namespace FileEncryptor
                 oldfile.Read(readFromFile, 0, bytesToRead);
                 bytesRead += bytesToRead;
 
-                //Decrypt bytes that have been read into memory then write them to the new file.
-                using (MemoryStream memStream = new MemoryStream())
+                try
                 {
-                    using (CryptoStream cryptStream = new CryptoStream(memStream, decryptor, CryptoStreamMode.Write))
+                    //Decrypt bytes that have been read into memory then write them to the new file.
+                    using (MemoryStream memStream = new MemoryStream())
                     {
-                        cryptStream.Write(readFromFile, 0, readFromFile.Length);
+                        using (CryptoStream cryptStream = new CryptoStream(memStream, decryptor, CryptoStreamMode.Write))
+                        {
+                            cryptStream.Write(readFromFile, 0, readFromFile.Length);
+                        }
+                        byte[] bytesToWrite = memStream.ToArray();
+                        newFile.Write(bytesToWrite, 0, bytesToWrite.Length);
                     }
-                    byte[] bytesToWrite = memStream.ToArray();
-                    newFile.Write(bytesToWrite, 0, bytesToWrite.Length);
                 }
+                catch
+                {
+                    Console.Out.WriteLine("File failed to decrypt.");
+                    oldfile.Close();
+                    newFile.Close();
+                    File.Delete(temporaryName);
+                    return;
+                }
+                
             }
 
             //Clean up.
@@ -153,6 +201,11 @@ namespace FileEncryptor
             moveFile(filePath, temporaryName);
         }
 
+        /// <summary>
+        /// Moves a file from one location to another. Overwrites.
+        /// </summary>
+        /// <param name="newFilePath">The new file location.</param>
+        /// <param name="file">The old file location.</param>
         private void moveFile(string newFilePath, string file)
         {
             try
