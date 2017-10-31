@@ -18,7 +18,6 @@ namespace FileEncryptor
         public FileEncryption()
         {
             aes.KeySize = 256;
-            int block = aes.BlockSize;
         }
 
         public void CreateKey(string password)
@@ -86,6 +85,7 @@ namespace FileEncryptor
             oldfile.Close();
             newFile.Flush();
             newFile.Close();
+            moveFile(filePath, temporaryName);
 
         }
 
@@ -100,7 +100,7 @@ namespace FileEncryptor
             return temporaryName;
         }
 
-        public void decryptFile(string filePath)
+        public void decryptFile(string filePath, string password)
         {
             //Setup temporary file name.
             var temporaryName = getTemporaryName(filePath);
@@ -114,8 +114,9 @@ namespace FileEncryptor
             oldfile.Read(salt, 0, 16);
             byte[] IV = new byte[aes.IV.Length];
             oldfile.Read(IV, 0, aes.IV.Length);
+            aes.IV = IV;
 
-
+            discoverKey(password, salt);
 
             //Creating a file to write to.
             FileStream newFile = new FileStream(temporaryName, FileMode.Create, FileAccess.Write);
@@ -149,6 +150,24 @@ namespace FileEncryptor
             oldfile.Close();
             newFile.Flush();
             newFile.Close();
+            moveFile(filePath, temporaryName);
+        }
+
+        private void moveFile(string newFilePath, string file)
+        {
+            try
+            {
+                if (File.Exists(newFilePath))
+                {
+                    File.Delete(newFilePath);
+                }
+
+                File.Move(file, newFilePath);
+            }
+            catch
+            {
+                Console.Out.WriteLine("I am sorry, I have failed you.");
+            }
         }
     }
 }
