@@ -78,7 +78,7 @@ namespace FileEncryptor
             while (oldfile.Length > bytesRead)
             {
                 //Decide how many bytes to encrypt at once and read them in.
-                int bytesToRead = Math.Min(320000000, (int) oldfile.Length - bytesRead);
+                int bytesToRead = (int)Math.Min((long)320000000, oldfile.Length - (long)bytesRead);
                 byte[] readFromFile = new byte[bytesToRead];
                 oldfile.Read(readFromFile, 0, bytesToRead);
                 bytesRead += bytesToRead;
@@ -165,7 +165,7 @@ namespace FileEncryptor
             while (fileLength > bytesRead)
             {
                 //Decide how many bytes to Decrypt at once and read them in.
-                int bytesToRead = Math.Min(320000000, (int)fileLength - bytesRead);
+                int bytesToRead = (int)Math.Min((long)320000000, oldfile.Length - (long)bytesRead);
                 byte[] readFromFile = new byte[bytesToRead];
                 oldfile.Read(readFromFile, 0, bytesToRead);
                 bytesRead += bytesToRead;
