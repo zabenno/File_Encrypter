@@ -72,45 +72,26 @@ namespace FileEncryptor
 
             //Creating encryptor to be used.
             ICryptoTransform encryptor = aes.CreateEncryptor(aes.Key, aes.IV);
-            int bytesRead = 0;
 
-            //While the old file has not been entirely encrypted.
-            while (oldfile.Length > bytesRead)
+            //Encrypting file.
+            try
             {
-                //Decide how many bytes to encrypt at once and read them in.
-                int bytesToRead = (int)Math.Min((long)320000000, oldfile.Length - (long)bytesRead);
-                byte[] readFromFile = new byte[bytesToRead];
-                oldfile.Read(readFromFile, 0, bytesToRead);
-                bytesRead += bytesToRead;
-
-                try
+                using (CryptoStream cryptStream = new CryptoStream(newFile, encryptor, CryptoStreamMode.Write))
                 {
-                    //Encrypt bytes that have been read into memory then write them to the new file.
-                    using (MemoryStream memStream = new MemoryStream())
-                    {
-                        using (CryptoStream cryptStream = new CryptoStream(memStream, encryptor, CryptoStreamMode.Write))
-                        {
-                            cryptStream.Write(readFromFile, 0, readFromFile.Length);
-                        }
-                        byte[] bytesToWrite = memStream.ToArray();
-                        newFile.Write(bytesToWrite, 0, bytesToWrite.Length);
-                    }
+                    oldfile.CopyTo(cryptStream);
                 }
-                catch
-                {
-                    Console.Out.WriteLine("File failed to encrypt.");
-                    oldfile.Close();
-                    newFile.Close();
-                    File.Delete(temporaryName);
-                    return;
-                }
-
+            }
+            catch(Exception e)
+            {
+                Console.Out.WriteLine(e.ToString());
+                oldfile.Close();
+                newFile.Close();
+                File.Delete(temporaryName);
+                return;
             }
 
             //Clean up.
             oldfile.Close();
-            newFile.Flush();
-            newFile.Close();
             moveFile(filePath, temporaryName);
 
         }
@@ -159,45 +140,26 @@ namespace FileEncryptor
 
             //Creating decryptor to be used.
             ICryptoTransform decryptor = aes.CreateDecryptor(aes.Key, aes.IV);
-            int bytesRead = 0;
 
-            //While the old file has not been entirely decrypted.
-            while (fileLength > bytesRead)
+            //Decrypting file.
+            try
             {
-                //Decide how many bytes to Decrypt at once and read them in.
-                int bytesToRead = (int)Math.Min((long)320000000, oldfile.Length - (long)bytesRead);
-                byte[] readFromFile = new byte[bytesToRead];
-                oldfile.Read(readFromFile, 0, bytesToRead);
-                bytesRead += bytesToRead;
-
-                try
+                using (CryptoStream cryptStream = new CryptoStream(newFile, decryptor, CryptoStreamMode.Write))
                 {
-                    //Decrypt bytes that have been read into memory then write them to the new file.
-                    using (MemoryStream memStream = new MemoryStream())
-                    {
-                        using (CryptoStream cryptStream = new CryptoStream(memStream, decryptor, CryptoStreamMode.Write))
-                        {
-                            cryptStream.Write(readFromFile, 0, readFromFile.Length);
-                        }
-                        byte[] bytesToWrite = memStream.ToArray();
-                        newFile.Write(bytesToWrite, 0, bytesToWrite.Length);
-                    }
+                    oldfile.CopyTo(cryptStream);
                 }
-                catch
-                {
-                    Console.Out.WriteLine("File failed to decrypt.");
-                    oldfile.Close();
-                    newFile.Close();
-                    File.Delete(temporaryName);
-                    return;
-                }
-                
+            }
+            catch(Exception e)
+            {
+                Console.Out.WriteLine(e.ToString());
+                oldfile.Close();
+                newFile.Close();
+                File.Delete(temporaryName);
+                return;
             }
 
             //Clean up.
             oldfile.Close();
-            newFile.Flush();
-            newFile.Close();
             moveFile(filePath, temporaryName);
         }
 
